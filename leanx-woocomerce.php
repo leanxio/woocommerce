@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: LeanX for WooCommerce
- * Plugin URI: https://example.com/leanx-for-woocommerce
+ * Plugin URI: https://docs.leanx.io/api-docs/suite-plugin/woocommerce
  * Description: A LeanX payment gateway for WooCommerce.
  * Author: Nazirul Ifwat Abd Aziz
  * Author URI: https://www.leanx.io/
@@ -39,8 +39,8 @@ function leanx_init() {
     require_once plugin_dir_path(__FILE__) . 'includes/invoice_column_functions.php';
 
     // Add hooks for invoice column
-add_filter('manage_edit-shop_order_columns', 'add_invoice_column_header');
-add_action('manage_shop_order_posts_custom_column', 'add_invoice_column_content');
+    add_filter('manage_edit-shop_order_columns', 'add_invoice_column_header');
+    add_action('manage_shop_order_posts_custom_column', 'add_invoice_column_content');
 
 }
 
