@@ -6,16 +6,15 @@ if (!defined('ABSPATH')) {
 class LeanX_Gateway extends WC_Payment_Gateway {
     public function __construct() {
         $this->id   = 'leanx';
-        $this->icon = LEANX_PLUGIN_URL . 'assets/leanx-logo-fpx.png';
 
         $this->init_form_fields();
         $this->init_settings();
 
-        $this->method_title       = $this->get_option('title', __('LeanX', 'leanx'));
-        $this->method_description = $this->get_option('description', __('LeanX payment gateway for WooCommerce.', 'leanx'));
-        $this->title              = $this->get_option('title', __('LeanX', 'leanx'));
-        $this->description        = $this->get_option('description', __('LeanX payment gateway for WooCommerce.', 'leanx'));
-        $this->order_button_text  = $this->get_option('order_button_text', __('Proceed to LeanX', 'leanx'));
+        $this->method_title       = __('LeanX', 'leanx');
+        $this->method_description = __('LeanX payment gateway for WooCommerce.', 'leanx');
+        $this->title              = $this->get_option('title', __('Credit/Debit Card or Online Banking', 'leanx'));
+        $this->description        = $this->get_option('description', __('Pay using Credit Card, Debit Card or FPX Online Banking.', 'leanx'));
+        $this->order_button_text  = $this->get_option('order_button_text', __('Pay Now', 'leanx'));
         $this->supports           = array('products');
 
         $leanx_verification = new LeanX_Verification();
@@ -24,6 +23,32 @@ class LeanX_Gateway extends WC_Payment_Gateway {
         }
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+    }
+
+    /**
+     * Display multiple icons next to the payment method title.
+     *
+     * @return string HTML of the icons.
+     */
+    public function get_icon() {
+        $icon_html  = '';
+
+        $icons = array(
+            'visa'       => plugins_url( '../assets/visa_symbol.svg', __FILE__ ),
+            'mastercard' => plugins_url( '../assets/mc_symbol.svg', __FILE__ ),
+            'amex'       => plugins_url( '../assets/fpx_symbol.svg', __FILE__ ),
+            // Add more icons here as needed
+        );
+
+        foreach ( $icons as $name => $url ) {
+            $icon_html .= sprintf(
+                '<img src="%s" alt="%s" width="40" class="payment-icon" />',
+                esc_url( $url ),
+                esc_attr( ucfirst( $name ) )
+            );
+        }
+
+        return apply_filters( 'woocommerce_gateway_icon', $icon_html, $this->id );
     }
 
     public function init_form_fields() {
@@ -38,13 +63,13 @@ class LeanX_Gateway extends WC_Payment_Gateway {
                 'title'       => __('Title', 'leanx'),
                 'type'        => 'text',
                 'description' => __('The title of the payment method displayed to the customers.', 'leanx'),
-                'default'     => __('LeanX', 'leanx'),
+                'default'     => __('Credit/Debit Card or Online Banking', 'leanx'),
             ),
             'description' => array(
                 'title'       => __('Description', 'leanx'),
                 'type'        => 'textarea',
                 'description' => __('The description of the payment method displayed to the customers.', 'leanx'),
-                'default'     => __('Pay using LeanX.', 'leanx'),
+                'default'     => __('Pay using Credit Card, Debit Card or FPX Online Banking.', 'leanx'),
             ),
             'is_sandbox' => array(
                 'title'       => __('Sandbox Mode', 'leanx'),
@@ -86,14 +111,12 @@ class LeanX_Gateway extends WC_Payment_Gateway {
             'order_button_text' => array(
                 'title'   => __('Order Button Text', 'leanx'),
                 'type'    => 'text',
-                'default' => __('Proceed to LeanX', 'leanx'),
+                'default' => __('Pay Now', 'leanx'),
             ),
         );
     }
 
     public function process_payment($order_id) {
-        $order = wc_get_order($order_id);
-    
         // Call your API function
         $api_response = your_api_call_function($order_id);
     
@@ -128,5 +151,3 @@ function leanx_add_gateway($methods) {
 }
 
 add_filter('woocommerce_payment_gateways', 'leanx_add_gateway');
-
-
