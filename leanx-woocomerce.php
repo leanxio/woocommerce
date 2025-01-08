@@ -3,12 +3,13 @@
  * Plugin Name: LeanX for WooCommerce
  * Plugin URI: https://docs.leanx.io/api-docs/suite-plugin/woocommerce
  * Description: A LeanX payment gateway for WooCommerce.
- * Author: Nazirul Ifwat Abd Aziz
+ * Author: Nazirul Ifwat Abd Aziz, Adam Salleh
  * Author URI: https://www.leanx.io/
  * Version: 1.1.0
  * Requires PHP: 7.0
  * Requires at least: 4.6
  * Text Domain: leanx
+ * Requires Plugins: woocommerce
  * License: GPLv3
  * Domain Path: /languages/
  * WC requires at least: 3.0
