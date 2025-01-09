@@ -17,12 +17,28 @@ class LeanX_Gateway extends WC_Payment_Gateway {
         $this->order_button_text  = $this->get_option('order_button_text', __('Pay Now', 'leanx'));
         $this->supports           = array('products');
 
-        $leanx_verification = new LeanX_Verification();
-        if (!$leanx_verification->is_valid_for_use()) {
-            $this->enabled = 'no';
-        }
-
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+    }
+    
+    public function process_admin_options() {
+        // Save settings changed in the form fields
+        parent::process_admin_options();
+
+        // Verify form fields input
+        $leanx_verification = new LeanX_Verification();
+        $verification_result = $leanx_verification->is_valid_for_use();
+
+        if (!$verification_result) {
+            // Disable gateway
+            $settings = get_option('woocommerce_leanx_settings');
+            $settings['enabled'] = 'no';
+            update_option('woocommerce_leanx_settings', $settings);
+
+        } else {
+            echo "<div class=\"updated\"><p>Verification Successful! LeanX is ready to use. </p></div>";
+        }
     }
 
     /**
@@ -36,7 +52,7 @@ class LeanX_Gateway extends WC_Payment_Gateway {
         $icons = array(
             'visa'       => plugins_url( '../assets/visa_symbol.svg', __FILE__ ),
             'mastercard' => plugins_url( '../assets/mc_symbol.svg', __FILE__ ),
-            'amex'       => plugins_url( '../assets/fpx_symbol.svg', __FILE__ ),
+            'fpx'       => plugins_url( '../assets/fpx_symbol.svg', __FILE__ ),
             // Add more icons here as needed
         );
 
@@ -57,7 +73,6 @@ class LeanX_Gateway extends WC_Payment_Gateway {
                 'title'   => __('Enable/Disable', 'leanx'),
                 'type'    => 'checkbox',
                 'label'   => __('Enable LeanX', 'leanx'),
-                'default' => 'yes',
             ),
             'title' => array(
                 'title'       => __('Title', 'leanx'),
@@ -129,10 +144,13 @@ class LeanX_Gateway extends WC_Payment_Gateway {
             // Log the successful payment
             $logger->info('Payment success for order ID ' . $order_id . '. Redirecting to: ' . $api_response->data->redirect_url, array('source' => 'leanx process payment'));
     
-            // Redirect to the external URL provided by the API response
+            // TEMPORARY FIX: replace the base URL for bulan bintang deployment
+            $new_redirect_url = str_replace('https://payment.leanx.dev/', 'https://bulanbintanghq.leanx.dev/', $api_response->data->redirect_url);
+
+            // Redirect to the external URL provided by the API response            
             return array(
                 'result'   => 'success',
-                'redirect' => $api_response->data->redirect_url,
+                'redirect' => $new_redirect_url,
             );
         } else {
             // Log the failed payment
