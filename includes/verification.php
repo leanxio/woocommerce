@@ -75,7 +75,7 @@ class LeanX_Verification {
 
         $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
 
-        $url = $sandbox_enabled ? 'https://stag-api.leanpay.my': 'https://api.leanx.io';
+        $url = $sandbox_enabled ? 'https://api.leanx.dev': 'https://api.payright-sandbox.my';
 
          // Log url response
          $logger->info('url: ' . print_r($url . ": " . $this->sandbox_enabled, true), $context);       

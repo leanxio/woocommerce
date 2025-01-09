@@ -97,7 +97,7 @@ function display_wp_transaction_details_page() {
         }
     
         if ($invoice_no) {
-            $api_url = $sandbox_enabled ? "https://stag-api.leanpay.my/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
+            $api_url = $sandbox_enabled ? "https://api.leanx.dev/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
     
             $attempt = 0;
     

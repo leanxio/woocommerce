@@ -20,7 +20,7 @@ function your_api_call_function($order_id) {
     $leanx_settings = get_option('woocommerce_leanx_settings');
 
     $random_string = substr(str_shuffle(md5(microtime())), 0, 6);
-    $is_sandbox = $leanx_settings['is_sandbox'];
+    $is_sandbox = $leanx_settings['is_sandbox']; // This could be redundant. Please revisit.
     $api_key = $leanx_settings['api_key'];
     $collection_id = $leanx_settings['collection_id'];
     $bill_invoice_id = $leanx_settings['bill_invoice_id'] . '-' . $order_id;
@@ -29,7 +29,6 @@ function your_api_call_function($order_id) {
     $order->update_meta_data('Invoice', $bill_invoice_id);
     $order->save(); // Important: Save the order to commit the meta data update
 
-    // $base_url = 'http://localhost:8000';
     $base_url = home_url();
     
     // Insert into the leanx_order table
@@ -56,11 +55,6 @@ function your_api_call_function($order_id) {
     $logger->info('Bill Invoice ID: ' . $bill_invoice_id, array('source' => 'leanx'));
     
     // Prepare the data for the API call
-    // $client_data = json_encode(array(
-    //     "order_id" => $order_id
-    // ));
-
-    // Prepare the data for the API call
     $data = array(
         'collection_uuid' => $collection_id,
         'amount'          => $order->get_total(), // Use the order total as the amount
@@ -75,7 +69,7 @@ function your_api_call_function($order_id) {
     $logger->info('API Call Data: ' . print_r(json_encode($data), true), array('source' => 'leanx'));
 
     // Choose the appropriate URL depending on the sandbox setting
-    $api_url = $sandbox_enabled ? 'https://stag-api.leanpay.my/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id : 'https://api.leanx.io/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id;
+    $api_url = $sandbox_enabled ? 'https://api.leanx.dev/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id : 'https://api.leanx.io/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id;
 
     // Make the API call using the wp_remote_post function
     $response = wp_remote_post($api_url, array(
@@ -171,7 +165,7 @@ function send_data_to_api($signed) {
         $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
         $secret_key = get_option('woocommerce_leanx_settings')['hash_key'];
 
-        $url = $sandbox_enabled ? 'https://stag-api.leanpay.my/api/v1/jwt/decode' : 'https://api.leanx.io/api/v1/jwt/decode';
+        $url = $sandbox_enabled ? 'https://api.leanx.dev/api/v1/jwt/decode' : 'https://api.leanx.io/api/v1/jwt/decode';
         $headers = ['accept' => 'application/json', 'Content-Type' => 'application/json'];
 
         $post_data = ['signed' => $signed, 'secret_key' => $secret_key];

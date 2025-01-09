@@ -26,7 +26,7 @@ if ($order_id && !empty($invoice_no)) {
     // Mark the order as completed and reduce stock levels
     $order = wc_get_order($order_id);
 
-    $url = $sandbox_enabled ? 'https://stag-api.leanpay.my': 'https://api.leanx.io';
+    $url = $sandbox_enabled ? 'https://api.leanx.dev': 'https://api.leanx.io';
 
     // Check order id with API
     $api_url = $url . '/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=' . $invoice_no; 
