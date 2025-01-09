@@ -17,8 +17,6 @@ class LeanX_Gateway extends WC_Payment_Gateway {
         $this->order_button_text  = $this->get_option('order_button_text', __('Pay Now', 'leanx'));
         $this->supports           = array('products');
 
-        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
-        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
     }
     
@@ -160,7 +158,7 @@ class LeanX_Gateway extends WC_Payment_Gateway {
             return;
         }
     }
-    
+
 }
 
 function leanx_add_gateway($methods) {
