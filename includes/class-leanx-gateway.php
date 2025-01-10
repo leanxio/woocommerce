@@ -3,6 +3,28 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Remove blockUI on checkout page if needed. This normally appears when you quickly press back from the payment page to checkout
+add_action('wp_enqueue_scripts', 'remove_blockui_on_checkout');
+
+function remove_blockui_on_checkout() {
+    // Check if we are on the checkout page
+    if (is_checkout()) {       
+        // Using inline JavaScript
+        wp_add_inline_script('jquery', "
+            jQuery(document).ready(function ($) {
+                // Listen for visibility changes (to handle back navigation)
+                document.addEventListener('visibilitychange', function () {
+                    if (document.visibilityState === 'visible') {
+                        console.log('Page became visible (Back navigation detected).');
+                        $(document.body).trigger('update_checkout');
+                        window.location.reload();
+                    }
+                });
+            });
+        ");
+    }
+}
+
 class LeanX_Gateway extends WC_Payment_Gateway {
     public function __construct() {
         $this->id   = 'leanx';
@@ -142,8 +164,12 @@ class LeanX_Gateway extends WC_Payment_Gateway {
             // Log the successful payment
             $logger->info('Payment success for order ID ' . $order_id . '. Redirecting to: ' . $api_response->data->redirect_url, array('source' => 'leanx process payment'));
     
-            // TEMPORARY FIX: replace the base URL for bulan bintang deployment
-            $new_redirect_url = str_replace('https://payment.leanx.dev/', 'https://bulanbintanghq.leanx.dev/', $api_response->data->redirect_url);
+            // Custom redirect only for vendor Bulan Bintang
+            $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
+
+            $new_redirect_url = $sandbox_enabled 
+                ? str_replace('https://payment.leanx.dev/', 'https://bulanbintanghq.leanx.dev/', $api_response->data->redirect_url) 
+                : str_replace('https://payment.leanx.io', 'https://bulanbintanghq.leanx.io/', $api_response->data->redirect_url);
 
             // Redirect to the external URL provided by the API response            
             return array(
