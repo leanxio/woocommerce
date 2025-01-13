@@ -16,7 +16,7 @@ function create_leanx_table() {
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             order_id mediumint(9) NOT NULL,
             unique_id text NOT NULL,
-            api_key text NOT NULL,
+            auth_token text NOT NULL,
             callback_data text,
             data text,
             invoice_id text,

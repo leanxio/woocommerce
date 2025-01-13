@@ -15,7 +15,7 @@ function leanx_check_and_cancel_pending_orders_on_admin_page() {
 
         $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
         $leanx_settings = get_option('woocommerce_leanx_settings');
-        $api_key = $leanx_settings['api_key'];
+        $auth_token = $leanx_settings['auth_token'];
 
         $args = array(
             'status' => 'pending',
@@ -42,7 +42,9 @@ function leanx_check_and_cancel_pending_orders_on_admin_page() {
                     $invoice_no = $order->get_meta('Invoice');
                 }
 
-                $api_url = $sandbox_enabled ? "https://api.leanx.dev/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
+                $api_url = $sandbox_enabled 
+                    ? "https://api.leanx.dev/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" 
+                    : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
 
                 if ($invoice_no) {
                     $logger->info("Invoice number for order {$order_id}: {$invoice_no}", $context);
@@ -50,7 +52,7 @@ function leanx_check_and_cancel_pending_orders_on_admin_page() {
                     $response = wp_remote_post($api_url, array(
                         'headers' => array(
                             'accept' => 'application/json',
-                            'auth-token' => $api_key,
+                            'auth-token' => $auth_token,
                         ),
                         'timeout' => 10 // Setting timeout to 10 seconds
                     ));

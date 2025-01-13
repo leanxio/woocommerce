@@ -36,7 +36,7 @@ function display_wp_transaction_details_page() {
     echo '<thead><tr>';
     echo '<th>Order ID</th>';
     echo '<th>Unique ID</th>';
-    echo '<th>API Key</th>';
+    echo '<th>Auth Token</th>';
     echo '<th>Data</th>';
     echo '<th>Invoice ID</th>';
     echo '</tr></thead>';
@@ -45,7 +45,7 @@ function display_wp_transaction_details_page() {
         echo '<tr>';
         echo '<td>' . $row->order_id . '</td>';
         echo '<td>' . $row->unique_id . '</td>';
-        echo '<td>' . $row->api_key . '</td>';
+        echo '<td>' . $row->auth_token . '</td>';
         echo '<td>' . $row->data . '</td>';
         echo '<td>' . $row->invoice_id . '</td>';
         echo '</tr>';
@@ -83,7 +83,7 @@ function display_wp_transaction_details_page() {
     
         $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
         $leanx_settings = get_option('woocommerce_leanx_settings');
-        $api_key = $leanx_settings['api_key'];
+        $auth_token = $leanx_settings['auth_token'];
     
         $table_name = $wpdb->prefix . 'leanx_order';
         $invoice_no = $wpdb->get_var($wpdb->prepare("SELECT invoice_no FROM $table_name WHERE order_id = %s", $order_id));
@@ -97,7 +97,9 @@ function display_wp_transaction_details_page() {
         }
     
         if ($invoice_no) {
-            $api_url = $sandbox_enabled ? "https://api.leanx.dev/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
+            $api_url = $sandbox_enabled 
+                ? "https://api.leanx.dev/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" 
+                : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
     
             $attempt = 0;
     
@@ -105,11 +107,11 @@ function display_wp_transaction_details_page() {
                 $response = wp_remote_post($api_url, array(
                     'headers' => array(
                         'accept' => 'application/json',
-                        'auth-token' => $api_key,
+                        'auth-token' => $auth_token,
                     ),
                     'timeout' => 20 // Setting timeout to 20 seconds
                 ));
-                $logger->info("API Key : $api_key", $context);
+                $logger->info("Auth Token : $auth_token", $context);
 
                 $http_code = wp_remote_retrieve_response_code($response);
 

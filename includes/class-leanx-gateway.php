@@ -113,10 +113,10 @@ class LeanX_Gateway extends WC_Payment_Gateway {
                 'default'     => 'no',
                 'description' => __('Enable this option to use the sandbox environment for testing.', 'leanx'),
             ),
-            'api_key' => array(
-                'title'       => __('API key', 'leanx'),
+            'auth_token' => array(
+                'title'       => __('Auth Token', 'leanx'),
                 'type'        => 'text',
-                'description' => __('Enter your LeanX API key.', 'leanx'),
+                'description' => __('Enter your LeanX Auth Token.', 'leanx'),
                 'default'     => '',
             ),
             'collection_id' => array(
@@ -167,9 +167,9 @@ class LeanX_Gateway extends WC_Payment_Gateway {
             // Custom redirect only for vendor Bulan Bintang
             $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
 
-            $new_redirect_url = $sandbox_enabled 
+            $new_redirect_url = $sandbox_enabled
                 ? str_replace('https://payment.leanx.dev/', 'https://bulanbintanghq.leanx.dev/', $api_response->data->redirect_url) 
-                : str_replace('https://payment.leanx.io', 'https://bulanbintanghq.leanx.io/', $api_response->data->redirect_url);
+                : str_replace('https://payment.leanx.io/', 'https://bulanbintanghq.leanx.io/', $api_response->data->redirect_url);
 
             // Redirect to the external URL provided by the API response            
             return array(

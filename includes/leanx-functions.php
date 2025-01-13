@@ -21,7 +21,7 @@ function your_api_call_function($order_id) {
 
     $random_string = substr(str_shuffle(md5(microtime())), 0, 6);
     $is_sandbox = $leanx_settings['is_sandbox']; // This could be redundant. Please revisit.
-    $api_key = $leanx_settings['api_key'];
+    $auth_token = $leanx_settings['auth_token'];
     $collection_id = $leanx_settings['collection_id'];
     $bill_invoice_id = $leanx_settings['bill_invoice_id'] . '-' . $order_id;
 
@@ -50,7 +50,7 @@ function your_api_call_function($order_id) {
     // log to see the value
     $logger = wc_get_logger();
     $logger->info('Is Sandbox: ' . $is_sandbox, array('source' => 'leanx'));
-    $logger->info('API Key: ' . $api_key, array('source' => 'leanx'));
+    $logger->info('Auth Token: ' . $auth_token, array('source' => 'leanx'));
     $logger->info('Collection ID: ' . $collection_id, array('source' => 'leanx'));
     $logger->info('Bill Invoice ID: ' . $bill_invoice_id, array('source' => 'leanx'));
     
@@ -69,7 +69,9 @@ function your_api_call_function($order_id) {
     $logger->info('API Call Data: ' . print_r(json_encode($data), true), array('source' => 'leanx'));
 
     // Choose the appropriate URL depending on the sandbox setting
-    $api_url = $sandbox_enabled ? 'https://api.leanx.dev/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id : 'https://api.leanx.io/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id;
+    $api_url = $sandbox_enabled 
+        ? 'https://api.leanx.dev/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id 
+        : 'https://api.leanx.io/api/v1/public-merchant/public/collection-payment-portal?invoice_no=' . $bill_invoice_id;
 
     // Make the API call using the wp_remote_post function
     $response = wp_remote_post($api_url, array(
@@ -80,7 +82,7 @@ function your_api_call_function($order_id) {
         'blocking'    => true,
         'headers'     => array(
             'Content-Type' => 'application/json; charset=utf-8',
-            'auth-token' => $api_key // Replace with your actual auth token
+            'auth-token' => $auth_token // Replace with your actual auth token
         ),
         'body'        => json_encode($data),
         'cookies'     => array(),
@@ -297,7 +299,7 @@ function leanx_process_callback(WP_REST_Request $request) {
             array(
                 'order_id' => $order_id_from_client_data,
                 'unique_id' => $merchant_invoice_no,
-                'api_key' => $uuid,
+                'auth_token' => $uuid,
                 'callback_data' => serialize($data),
                 'data' => $amount,
                 'invoice_id' => $invoice_no,
