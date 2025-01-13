@@ -119,10 +119,16 @@ class LeanX_Gateway extends WC_Payment_Gateway {
                 'description' => __('Enter your LeanX Auth Token.', 'leanx'),
                 'default'     => '',
             ),
-            'collection_id' => array(
-                'title'       => __('Collection ID', 'leanx'),
+            'hash_key' => array(
+                'title'       => __('Hash Key', 'leanx'),
                 'type'        => 'text',
-                'description' => __('Enter your LeanX Collection ID.', 'leanx'),
+                'description' => __('Enter your LeanX Hash Key.', 'leanx'),
+                'default'     => '',
+            ),
+            'collection_uuid' => array(
+                'title'       => __('Collection UUID', 'leanx'),
+                'type'        => 'text',
+                'description' => __('Enter your LeanX Collection UUID.', 'leanx'),
                 'default'     => '',
             ),
             'instruction' => array(
@@ -135,12 +141,6 @@ class LeanX_Gateway extends WC_Payment_Gateway {
                 'title'       => __('Bill Invoice ID', 'leanx'),
                 'type'        => 'text',
                 'description' => __('Enter your LeanX Bill Invoice ID.', 'leanx'),
-                'default'     => '',
-            ),
-            'hash_key' => array(
-                'title'       => __('Hash Key', 'leanx'),
-                'type'        => 'text',
-                'description' => __('Enter your LeanX Hash Key.', 'leanx'),
                 'default'     => '',
             ),
             'order_button_text' => array(

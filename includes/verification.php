@@ -3,7 +3,7 @@
 class LeanX_Verification {
 
     private $auth_token;
-    private $collection_id;
+    private $collection_uuid;
     private $bill_invoice_id;
     private $supported_currencies = array('MYR');
     private $log;
@@ -11,7 +11,7 @@ class LeanX_Verification {
     public function __construct() {
         $this->leanx_settings = get_option('woocommerce_leanx_settings');
         $this->auth_token = $this->leanx_settings['auth_token'];
-        $this->collection_id = $this->leanx_settings['collection_id'];
+        $this->collection_uuid = $this->leanx_settings['collection_uuid'];
         $this->bill_invoice_id = $this->leanx_settings['bill_invoice_id'];
         $this->hash_key = $this->leanx_settings['hash_key'];
         $this->sandbox_enabled = $this->leanx_settings['is_sandbox'];
@@ -22,7 +22,7 @@ class LeanX_Verification {
     
         $this->log->info('woocommerce_leanx_settings: ' . print_r($this->leanx_settings, true), $context);
         $this->log->info('leanx_auth_token: ' . $this->auth_token, $context);
-        $this->log->info('leanx_collection_id: ' . $this->collection_id, $context);
+        $this->log->info('leanx_collection_uuid: ' . $this->collection_uuid, $context);
         $this->log->info('bill_invoice_id: ' . $this->bill_invoice_id, $context);
         $this->log->info('hash_key: ' . $this->hash_key, $context);
         $this->log->info('sandbox_enabled: ' . $this->sandbox_enabled, $context);
@@ -38,9 +38,9 @@ class LeanX_Verification {
             $valid = false;
         }
     
-        if (empty($this->collection_id)) {
-            remove_action('admin_notices', array($this, 'collection_id_missing_message'));
-            add_action('admin_notices', array($this, 'collection_id_missing_message'));
+        if (empty($this->collection_uuid)) {
+            remove_action('admin_notices', array($this, 'collection_uuid_missing_message'));
+            add_action('admin_notices', array($this, 'collection_uuid_missing_message'));
             $valid = false;
         }
     
@@ -94,17 +94,17 @@ class LeanX_Verification {
             $valid = false;
         }
     
-        // Check Collection ID
-        $collection_id_response = $this->call_api($url . '/api/v1/public-merchant/validate-collection-id', array(
-            'uuid' => $this->collection_id
+        // Check Collection UUID
+        $collection_uuid_response = $this->call_api($url . '/api/v1/public-merchant/validate-collection-id', array(
+            'uuid' => $this->collection_uuid
         ), $headers);
     
-        // Log Collection ID response
-        $logger->info('Collection ID response: ' . print_r($collection_id_response, true), $context);
+        // Log Collection UUID response
+        $logger->info('Collection UUID response: ' . print_r($collection_uuid_response, true), $context);
     
-        if ($collection_id_response['body']['response_code'] != 2000 || $collection_id_response['body']['description'] != 'SUCCESS') {
-            $logger->error('Invalid collection ID.', $context);
-            add_action('admin_notices', array($this, 'collection_id_invalid_message'));
+        if ($collection_uuid_response['body']['response_code'] != 2000 || $collection_uuid_response['body']['description'] != 'SUCCESS') {
+            $logger->error('Invalid collection UUID.', $context);
+            add_action('admin_notices', array($this, 'collection_uuid_invalid_message'));
             $valid = false;
         }
     
@@ -138,8 +138,8 @@ class LeanX_Verification {
         echo '<div class="error"><p>' . __('LeanX Error: Auth Token is missing.', 'leanx') . '</p></div>';
     }
 
-    public function collection_id_missing_message() {
-        echo '<div class="error"><p>' . __('LeanX Error: Collection ID is missing.', 'leanx') . '</p></div>';
+    public function collection_uuid_missing_message() {
+        echo '<div class="error"><p>' . __('LeanX Error: Collection UUID is missing.', 'leanx') . '</p></div>';
     }
 
     public function bill_invoice_id_missing_message() {
@@ -158,8 +158,8 @@ class LeanX_Verification {
         echo '<div class="error"><p>' . __('LeanX Error: Auth Token is invalid.', 'leanx') . '</p></div>';
     }
 
-    public function collection_id_invalid_message() {
-        echo '<div class="error"><p>' . __('LeanX Error: Collection ID is invalid.', 'leanx') . '</p></div>';
+    public function collection_uuid_invalid_message() {
+        echo '<div class="error"><p>' . __('LeanX Error: Collection UUID is invalid.', 'leanx') . '</p></div>';
     }
 
     private function call_api($url, $params, $headers) {

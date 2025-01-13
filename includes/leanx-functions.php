@@ -22,7 +22,7 @@ function your_api_call_function($order_id) {
     $random_string = substr(str_shuffle(md5(microtime())), 0, 6);
     $is_sandbox = $leanx_settings['is_sandbox']; // This could be redundant. Please revisit.
     $auth_token = $leanx_settings['auth_token'];
-    $collection_id = $leanx_settings['collection_id'];
+    $collection_uuid = $leanx_settings['collection_uuid'];
     $bill_invoice_id = $leanx_settings['bill_invoice_id'] . '-' . $order_id;
 
     // Add Bill Invoice ID as custom meta data to WooCommerce order
@@ -51,12 +51,12 @@ function your_api_call_function($order_id) {
     $logger = wc_get_logger();
     $logger->info('Is Sandbox: ' . $is_sandbox, array('source' => 'leanx'));
     $logger->info('Auth Token: ' . $auth_token, array('source' => 'leanx'));
-    $logger->info('Collection ID: ' . $collection_id, array('source' => 'leanx'));
+    $logger->info('Collection UUID: ' . $collection_uuid, array('source' => 'leanx'));
     $logger->info('Bill Invoice ID: ' . $bill_invoice_id, array('source' => 'leanx'));
     
     // Prepare the data for the API call
     $data = array(
-        'collection_uuid' => $collection_id,
+        'collection_uuid' => $collection_uuid,
         'amount'          => $order->get_total(), // Use the order total as the amount
         'redirect_url'    => $base_url . '?order_id='. $order_id . '&invoice_no='. $bill_invoice_id,
         'callback_url'    => $base_url . '/wp-json/leanx/v1/callback',
