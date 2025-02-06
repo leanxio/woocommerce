@@ -285,7 +285,7 @@ function leanx_process_callback(WP_REST_Request $request) {
             throw new Exception("Order not found.");
         }
         $current_status = $order->get_status();
-        if ($invoice_status == 'SUCCESS' && ($current_status == 'pending' || $current_status == 'on-hold')) {
+        if ($invoice_status == 'SUCCESS' && ($current_status == 'pending' || $current_status == 'on-hold' || $current_status == 'cancelled')) {
             $order->update_status('processing', "Order set to processing after successful callback. ($merchant_invoice_no)");
         } elseif ($current_status == 'pending' || $current_status == 'on-hold') {
             $order->update_status('cancelled', "Order status changed to cancelled due to failed callback. ($merchant_invoice_no)");

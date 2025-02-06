@@ -61,7 +61,7 @@ if ($order_id && !empty($invoice_no)) {
             // Check API response content here
             if ($api_response['response_code'] == '2000' && $api_response['data']['transaction_details']['invoice_status'] == 'SUCCESS') {
                 // Handle success scenario
-                if ($order->get_status() === 'pending') {
+                if ($order->get_status() === 'pending' || $order->get_status() === 'cancelled') {
                     $order->update_status('processing', 'Payment successful via LeanX.');
                 }
                 wp_redirect($order->get_checkout_order_received_url());
