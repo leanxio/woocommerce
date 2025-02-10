@@ -5,7 +5,7 @@
  * Description: A LeanX payment gateway for WooCommerce.
  * Author: Nazirul Ifwat Abd Aziz, Adam Salleh
  * Author URI: https://www.leanx.io/
- * Version: 1.1.0
+ * Version: 1.1.1
  * Requires PHP: 7.0
  * Requires at least: 4.6
  * Text Domain: leanx
