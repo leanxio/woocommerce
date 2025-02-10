@@ -103,6 +103,39 @@ function your_api_call_function($order_id) {
 
         // Log the decoded JSON response
         $logger->info("Decoded API Response: " . print_r($api_response, true), $context);
+        
+        // Getting auth_token as uuid
+        if (isset($api_response->data->redirect_url)) {
+            parse_str(parse_url($api_response->data->redirect_url, PHP_URL_QUERY), $query);
+            $callback_url = !empty($query['callback_url']) ? urldecode($query['callback_url']) : '';
+            if (!empty($callback_url)) {
+                parse_str(parse_url($callback_url, PHP_URL_QUERY), $params);
+                $uuid = $params['_uuid'] ?? 'Not found';
+            } else {
+                $uuid = 'Not found';
+            }
+        } else {
+            $uuid = 'Not found';
+        }
+
+        // Database insertion for transaction_details
+        $result = $wpdb->insert(
+            'wp_transaction_details',
+            array(
+                'order_id' => $order_id,
+                'unique_id' => $bill_invoice_id,
+                'auth_token' => $uuid,
+                'callback_data' => 'No callback data', //serialize($data),
+                'data' => $order->get_total(),
+                'invoice_id' => $bill_invoice_id,
+                'invoice_status' => NULL, //default status
+            )
+        );
+
+        if ($result === false) {
+            throw new Exception("Failed to insert data into 'transaction_details'.");
+        }
+        $logger->info("Successfully inserted data into 'transaction_details'.", $context);
 
         // Check if the response has the expected format
         if (null !== $api_response->response_code && 2000 == $api_response->response_code && isset($api_response->data->redirect_url)) {
@@ -112,8 +145,6 @@ function your_api_call_function($order_id) {
         }
     }
 }
-
-
 
 function leanx_get_template($template_name) {
     // Check if the template exists in the theme/child-theme
@@ -214,10 +245,6 @@ function send_data_to_api($signed) {
     }
 }
 
-
-
-
-
 function leanx_process_callback(WP_REST_Request $request) {
     global $wpdb;
     $logger = wc_get_logger();
@@ -294,7 +321,7 @@ function leanx_process_callback(WP_REST_Request $request) {
 
         // Database insertion
         $table_name = $wpdb->prefix . 'transaction_details';
-        $result = $wpdb->insert(
+        $result = $wpdb->update(
             $table_name,
             array(
                 'order_id' => $order_id_from_client_data,
@@ -303,13 +330,17 @@ function leanx_process_callback(WP_REST_Request $request) {
                 'callback_data' => serialize($data),
                 'data' => $amount,
                 'invoice_id' => $invoice_no,
+                'invoice_status' => $invoice_status,
+            ),
+            array(
+                'order_id' => $order_id_from_client_data,
             )
         );
 
         if ($result === false) {
             throw new Exception("Failed to insert data into database.");
         }
-        $logger->info("Successfully inserted data into $table_name.", $context);
+        $logger->info("Successfully updated data into $table_name by callback.", $context);
 
         // Return the decoded data as a JSON response
         wp_send_json_success($process_data);
@@ -321,3 +352,261 @@ function leanx_process_callback(WP_REST_Request $request) {
     }
 }
 
+function check_transaction_status() {
+    if (!isset($_POST['order_id'])) {
+        wp_send_json_error(['message' => 'Invalid Order ID']);
+    }
+
+    global $wpdb;
+    $order_id = sanitize_text_field($_POST['order_id']);
+    $logger = wc_get_logger();
+    $context = ['source' => 'leanx-manual-check'];
+
+    $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
+    $leanx_settings = get_option('woocommerce_leanx_settings');
+    $auth_token = $leanx_settings['auth_token'];
+
+    $table_name = $wpdb->prefix . 'leanx_order';
+    $invoice_no = $wpdb->get_var($wpdb->prepare("SELECT invoice_no FROM $table_name WHERE order_id = %s", $order_id));
+
+    if (!$invoice_no) {
+        wp_send_json_error(['message' => 'Invoice No Not Found']);
+    }
+
+    $api_url = $sandbox_enabled 
+        ? "https://api.leanx.dev/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no" 
+        : "https://api.leanx.io/api/v1/public-merchant/public/manual-checking-transaction?invoice_no=$invoice_no";
+
+    $response = wp_remote_post($api_url, [
+        'headers' => [
+            'accept' => 'application/json',
+            'auth-token' => $auth_token,
+        ],
+        'timeout' => 20
+    ]);
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    
+    if (isset($body['response_code']) && $body['response_code'] === 2000) {
+        $logger->info("Invoice number for order {$order_id}: {$invoice_no}", $context);
+        $invoice_status = $body['data']['transaction_details']['invoice_status'];
+        // Fetch the WooCommerce Order
+        $order = wc_get_order($order_id);
+
+        // Update WooCommerce Order Status Based on Invoice Status
+        if ($invoice_status === 'SUCCESS') {
+            $logger->info("Order {$order_id} status updated to processing.", $context);
+            $order->update_status('processing', 'Order status changed to processing.');
+        } elseif (in_array($invoice_status, ['FAILED', 'FPX_STOP_CHECK_FROM_PS', 'SENANGPAY_STOP_CHECK_FROM_PS'])) {
+            $logger->info("Order {$order_id} status updated to cancelled.", $context);
+            $order->update_status('cancelled', 'Order status changed to cancelled due to failed transaction.');
+        }
+
+        // Update transaction_details table with new invoice status
+        update_invoice_status($order_id, $invoice_status);
+        // Flush cache to ensure fresh data
+        wp_cache_flush();
+
+        wp_send_json_success([
+            'order_id' => $order_id,
+            'invoice_no' => $body['data']['transaction_details']['invoice_no'],
+            'invoice_status' => $invoice_status,
+            'amount' => $body['data']['transaction_details']['amount'],
+            'bank' => $body['data']['transaction_details']['bank_provider'],
+            'company' => $body['data']['company_name'],
+        ]);
+    } else {
+        wp_send_json_error(['message' => 'Transaction check failed.']);
+    }
+}
+add_action('wp_ajax_check_transaction_status', 'check_transaction_status');
+
+function update_invoice_status($order_id, $invoice_status) {
+    global $wpdb;
+
+    if (!$order_id || !$invoice_status) {
+        return false; // Return false if missing required parameters
+    }
+
+    $table_name = $wpdb->prefix . 'transaction_details';
+
+    $updated = $wpdb->update(
+        $table_name,
+        ['invoice_status' => sanitize_text_field($invoice_status)], // Update invoice_status column
+        ['order_id' => intval($order_id)] // Where order_id matches
+    );
+
+    return $updated !== false; // Return true if update was successful, false otherwise
+}
+
+function update_transaction_row() {
+    global $wpdb;
+
+    // Get the Order ID
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    if (!$order_id) {
+        wp_send_json_error(['message' => 'Invalid Order ID']);
+    }
+
+    $table_name = $wpdb->prefix . 'transaction_details';
+
+    // Fetch the updated transaction row
+    $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE order_id = %d", $order_id));
+
+    if (!$row) {
+        wp_send_json_error(['message' => 'Transaction not found']);
+    }
+
+    // Generate new row HTML
+    ob_start();
+    ?>
+    <tr id="order-<?php echo esc_attr($row->order_id); ?>">
+        <td class="column-order-id" data-label="Order ID">
+            <a href="<?php echo esc_url(admin_url('post.php?post=' . $row->order_id . '&action=edit')); ?>">
+                <?php echo esc_html($row->order_id); ?>
+            </a>
+        </td>
+        <td class="column-invoice-id" data-label="Invoice ID"><?php echo esc_html($row->invoice_id); ?></td>
+        <td class="column-auth-token" data-label="Auth Token"><?php echo esc_html($row->auth_token); ?></td>
+        <td class="column-amount" data-label="Amount"><?php echo esc_html(number_format($row->data, 2)); ?></td>
+        <td class="column-status" data-label="Status">
+            <?php
+            $status_class = 'status-pending';
+            $status_text = 'Pending';
+
+            if ($row->invoice_status === 'SUCCESS') {
+                $status_class = 'status-processing';
+                $status_text = 'Processing';
+            } elseif (in_array($row->invoice_status, ['FAILED', 'FPX_STOP_CHECK_FROM_PS', 'SENANGPAY_STOP_CHECK_FROM_PS'])) {
+                $status_class = 'status-cancelled';
+                $status_text = 'Cancelled';
+            } elseif (in_array($row->invoice_status, ['Pending', 'pending'])) {
+                $status_class = 'status-pending';
+                $status_text = 'Pending';
+            } elseif (!empty($row->invoice_status)) {
+                $status_class = 'status-on-hold';
+                $status_text = 'On-Hold';
+            }
+            ?>
+            <span class="status-label <?php echo esc_attr($status_class); ?>">
+                <?php echo esc_html($status_text); ?>
+            </span>
+        </td>
+        <td class="column-actions text-right" data-label="Actions">
+            <button class="button check-transaction" data-order-id="<?php echo esc_attr($row->order_id); ?>">
+                Check
+            </button>
+        </td>
+    </tr>
+    <?php
+    $row_html = ob_get_clean();
+
+    wp_send_json_success(['html' => $row_html]);
+}
+add_action('wp_ajax_update_transaction_row', 'update_transaction_row');
+
+function refresh_transaction_table() {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'transaction_details';
+
+    // Get parameters from AJAX request
+    $paged = isset($_POST['paged']) && is_numeric($_POST['paged']) ? intval($_POST['paged']) : 1;
+    $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
+    $filter_status = isset($_POST['filter_status']) ? sanitize_text_field($_POST['filter_status']) : '';
+    $sort_by = isset($_POST['sort_by']) ? sanitize_text_field($_POST['sort_by']) : 'order_id'; // Default sorting column
+    $sort_order = (isset($_POST['sort_order']) && in_array(strtolower($_POST['sort_order']), ['asc', 'desc'])) ? strtoupper($_POST['sort_order']) : 'DESC';
+    // ✅ Log received parameters
+    error_log("🔄 AJAX Received - Sort by: {$sort_by}, Order: {$sort_order}, Search: {$search}, Filter: {$filter_status}");
+
+    $per_page = 20;
+    $offset = ($paged - 1) * $per_page;
+
+    // Initialize WHERE conditions array
+    $where_conditions = [];
+
+    // ✅ Preserve search filter
+    if (!empty($search)) {
+        $where_conditions[] = $wpdb->prepare("(order_id LIKE %s OR invoice_id LIKE %s)", "%{$search}%", "%{$search}%");
+    }
+
+    // ✅ Preserve order tab filtering
+    $status_filters = [
+        "processing" => "invoice_status = 'SUCCESS'",
+        "cancelled"  => "invoice_status IN ('FAILED', 'FPX_STOP_CHECK_FROM_PS', 'SENANGPAY_STOP_CHECK_FROM_PS')",
+        "pending"    => "invoice_status IS NULL OR invoice_status = '' OR invoice_status IN ('Pending', 'pending')",
+        "on-hold"    => "invoice_status NOT IN ('SUCCESS', 'FAILED', 'FPX_STOP_CHECK_FROM_PS', 'SENANGPAY_STOP_CHECK_FROM_PS', 'Pending', 'pending') 
+                        AND invoice_status IS NOT NULL AND invoice_status <> ''"
+    ];
+
+    if (!empty($status_filters[$filter_status])) {
+        $where_conditions[] = $status_filters[$filter_status];
+    }
+
+    // Combine WHERE conditions
+    $where_clause = !empty($where_conditions) ? " WHERE " . implode(" AND ", $where_conditions) : "";
+
+    // ✅ Prevent SQL injection by only allowing specific columns
+    $allowed_sort_columns = ['order_id', 'invoice_id', 'invoice_status'];
+    if (!in_array($sort_by, $allowed_sort_columns)) {
+        $sort_by = 'order_id';
+    }
+
+    // ✅ Sorting while keeping search and filter results
+    $query = "SELECT SQL_NO_CACHE SQL_CALC_FOUND_ROWS * FROM $table_name $where_clause ORDER BY $sort_by $sort_order LIMIT $per_page OFFSET $offset";
+    $results = $wpdb->get_results($query);
+    $total_filtered_rows = (int) $wpdb->get_var("SELECT FOUND_ROWS()");
+
+    $total_pages = ceil($total_filtered_rows / $per_page);
+
+    // Generate updated table rows
+    ob_start();
+    foreach ($results as $row) {
+        ?>
+        <tr id="order-<?php echo esc_attr($row->order_id); ?>">
+            <td class="column-order-id" data-label="Order ID">
+                <a href="<?php echo esc_url(admin_url('post.php?post=' . $row->order_id . '&action=edit')); ?>">
+                    <?php echo esc_html($row->order_id); ?>
+                </a>
+            </td>
+            <td class="column-invoice-id" data-label="Invoice ID"><?php echo esc_html($row->invoice_id); ?></td>
+            <td class="column-auth-token" data-label="Auth Token"><?php echo esc_html($row->auth_token); ?></td>
+            <td class="column-amount" data-label="Amount"><?php echo esc_html(number_format($row->data, 2)); ?></td>
+            <td class="column-status" data-label="Status">
+                <?php
+                $status_class = 'status-pending';
+                $status_text = 'Pending';
+
+                if ($row->invoice_status === 'SUCCESS') {
+                    $status_class = 'status-processing';
+                    $status_text = 'Processing';
+                } elseif (in_array($row->invoice_status, ['FAILED', 'FPX_STOP_CHECK_FROM_PS', 'SENANGPAY_STOP_CHECK_FROM_PS'])) {
+                    $status_class = 'status-cancelled';
+                    $status_text = 'Cancelled';
+                } elseif (in_array($row->invoice_status, ['Pending', 'pending'])) {
+                    $status_class = 'status-pending';
+                    $status_text = 'Pending';
+                } elseif (!empty($row->invoice_status)) {
+                    $status_class = 'status-on-hold';
+                    $status_text = 'On-Hold';
+                }
+                ?>
+                <span class="status-label <?php echo esc_attr($status_class); ?>">
+                    <?php echo esc_html($status_text); ?>
+                </span>
+            </td>
+            <td class="column-actions text-right" data-label="Actions">
+                <button class="button check-transaction" data-order-id="<?php echo esc_attr($row->order_id); ?>">
+                    Check
+                </button>
+            </td>
+        </tr>
+        <?php
+    }
+    $table_html = ob_get_clean();
+
+    wp_send_json_success([
+        'html' => $table_html
+    ]);
+}
+add_action('wp_ajax_refresh_transaction_table', 'refresh_transaction_table');
