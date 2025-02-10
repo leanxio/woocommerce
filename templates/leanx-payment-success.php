@@ -57,20 +57,23 @@ if ($order_id && !empty($invoice_no)) {
         if ($response_code == 200) {
             // If response code is 200, decode the body and proceed with the logic
             $api_response = json_decode(wp_remote_retrieve_body($response), true);
+            $invoice_status = $api_response['data']['transaction_details']['invoice_status'];
     
             // Check API response content here
-            if ($api_response['response_code'] == '2000' && $api_response['data']['transaction_details']['invoice_status'] == 'SUCCESS') {
+            if ($api_response['response_code'] == '2000' && $invoice_status == 'SUCCESS') {
                 // Handle success scenario
                 if ($order->get_status() === 'pending' || $order->get_status() === 'cancelled') {
                     $order->update_status('processing', 'Payment successful via LeanX.');
                 }
+                update_invoice_status($order_id, $invoice_status);
                 wp_redirect($order->get_checkout_order_received_url());
                 $successful = true;
-            } elseif ($api_response['data']['transaction_details']['invoice_status'] == 'FAILED') {
+            } elseif ($invoice_status == 'FAILED') {
                 // Handle failure scenario
                 if ($order->get_status() === 'pending') {
                     $order->update_status('cancelled', 'Payment failed via LeanX.');
                 }
+                update_invoice_status($order_id, $invoice_status);
                 wc_add_notice(__('Order verification failed. Please contact support.', 'leanx'), 'error');
                 wp_redirect(wc_get_cart_url());
                 $successful = true;
