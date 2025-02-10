@@ -9,9 +9,8 @@ function create_leanx_table() {
     // First table: transaction_details
     $table_name1 = $wpdb->prefix . 'transaction_details';
 
-    // Check if the first table already exists
-    if($wpdb->get_var("SHOW TABLES LIKE '$table_name1'") != $table_name1) {
-
+    // Check if table exists
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name1'") != $table_name1) {
         $sql1 = "CREATE TABLE $table_name1 (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             order_id mediumint(9) NOT NULL,
@@ -20,11 +19,18 @@ function create_leanx_table() {
             callback_data text,
             data text,
             invoice_id text,
+            invoice_status VARCHAR(50) DEFAULT NULL,  /* New Column Added */
             PRIMARY KEY  (id)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql1);
+    } else {
+        // Check if 'invoice_status' column exists, if not, add it
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM `$table_name1` LIKE 'invoice_status'");
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE `$table_name1` ADD COLUMN invoice_status VARCHAR(50) DEFAULT NULL");
+        }
     }
 
     // Second table: leanx_order
