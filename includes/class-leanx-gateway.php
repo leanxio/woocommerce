@@ -163,18 +163,10 @@ class LeanX_Gateway extends WC_Payment_Gateway {
         if ($api_response->response_code == 2000 && $api_response->description == "SUCCESS") {
             // Log the successful payment
             $logger->info('Payment success for order ID ' . $order_id . '. Redirecting to: ' . $api_response->data->redirect_url, array('source' => 'leanx process payment'));
-    
-            // Custom redirect only for vendor Bulan Bintang
-            $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
 
-            $new_redirect_url = $sandbox_enabled 
-                ? str_replace('https://payment.leanx.dev/', 'https://bulanbintanghq.leanx.dev/', $api_response->data->redirect_url) 
-                : str_replace('https://payment.leanx.io', 'https://bulanbintanghq.leanx.io/', $api_response->data->redirect_url);
-
-            // Redirect to the external URL provided by the API response            
             return array(
                 'result'   => 'success',
-                'redirect' => $new_redirect_url,
+                'redirect' => $api_response->data->redirect_url,
             );
         } else {
             // Log the failed payment
