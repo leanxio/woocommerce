@@ -1,0 +1,26 @@
+# Changelog
+
+## 1.1.1 (2025-02-10)
+
+### Features
+- Updated version number. (c78a70d)
+- Added multple new functions to cater for the new admin page transaction table update. (f9d9656)
+- Refactored admin page to 3 different parts; the frontend view, the style, and the script. (303e7b2)
+- Added new column called 'invoice_status' to 'transaction_details' table. (246a2bc)
+- Added function call to update 'invoice_status' of order to 'transaction_details' table. (0fe9a21)
+- Added feature to change order_status from cancelled to pending in cases of successful subsequent payment attempt. (0cc28e4)
+- Renamed all instances of 'collection id' to 'collection uuid' (dfe0b62)
+- Refactored all instances of 'API Key' to 'Auth Token' for standardizing naming across our platforms. (4b42d47)
+- Added an empty index.html top prevent access to Directory Index (371ee2a)
+- Added an empty index.html to prevent access to Directory Indexing. (5f2fceb)
+- Fixed a blockUI issue if the back button is pressed quickly after proceeding with checkout to payment page. Added production redirect_url. (43d290a)
+- Updated the URIs to point to the proper API endpoints. (bcf02d5)
+- Removed unused enqueue scripts. (5b9cb7d)
+- Added a reroute of redirect_url to cater for vendor: 'Bulan Bintang'. Fixed the LeanX_Verification call to prevent needing to save twice to update settings. Fixed minor issues:  - replaced mislabeled 'amex' to 'fpx'  - removed default for form 'enabled' (26b599f)
+- Added a check to in the header so that the woocommerce requirement is reflected in the plugins page. (29a472f)
+- Removed duplicated README file. (6d47e1e)
+- Updated the Plugin URI in header to point to the plugin documentation website. (017bbba)
+- Added payment icon assets. (cffc830)
+- Changed Icons construct method to allow mutiple icons. Fixed method title and description from being rewritten for customer facing title and description. Changed default values for customer facing title and description as well as the order button value. (3c5058a)
+- Initial Commit Repo extracted from extension file from: https://docs.leanx.io/api-docs/suite-plugin/woocommerce (0adddd7)
+- Initial commit (fc7c857)

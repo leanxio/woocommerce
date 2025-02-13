@@ -2,16 +2,16 @@
 
 class LeanX_Verification {
 
-    private $api_key;
-    private $collection_id;
+    private $auth_token;
+    private $collection_uuid;
     private $bill_invoice_id;
     private $supported_currencies = array('MYR');
     private $log;
 
     public function __construct() {
         $this->leanx_settings = get_option('woocommerce_leanx_settings');
-        $this->api_key = $this->leanx_settings['api_key'];
-        $this->collection_id = $this->leanx_settings['collection_id'];
+        $this->auth_token = $this->leanx_settings['auth_token'];
+        $this->collection_uuid = $this->leanx_settings['collection_uuid'];
         $this->bill_invoice_id = $this->leanx_settings['bill_invoice_id'];
         $this->hash_key = $this->leanx_settings['hash_key'];
         $this->sandbox_enabled = $this->leanx_settings['is_sandbox'];
@@ -21,8 +21,8 @@ class LeanX_Verification {
         $context = array('source' => 'LeanX_Verification_constant');
     
         $this->log->info('woocommerce_leanx_settings: ' . print_r($this->leanx_settings, true), $context);
-        $this->log->info('leanx_api_key: ' . $this->api_key, $context);
-        $this->log->info('leanx_collection_id: ' . $this->collection_id, $context);
+        $this->log->info('leanx_auth_token: ' . $this->auth_token, $context);
+        $this->log->info('leanx_collection_uuid: ' . $this->collection_uuid, $context);
         $this->log->info('bill_invoice_id: ' . $this->bill_invoice_id, $context);
         $this->log->info('hash_key: ' . $this->hash_key, $context);
         $this->log->info('sandbox_enabled: ' . $this->sandbox_enabled, $context);
@@ -32,15 +32,15 @@ class LeanX_Verification {
     private function validate_keys_presence() {
         $valid = true;
     
-        if (empty($this->api_key)) {
-            remove_action('admin_notices', array($this, 'api_key_missing_message'));
-            add_action('admin_notices', array($this, 'api_key_missing_message'));
+        if (empty($this->auth_token)) {
+            remove_action('admin_notices', array($this, 'auth_token_missing_message'));
+            add_action('admin_notices', array($this, 'auth_token_missing_message'));
             $valid = false;
         }
     
-        if (empty($this->collection_id)) {
-            remove_action('admin_notices', array($this, 'collection_id_missing_message'));
-            add_action('admin_notices', array($this, 'collection_id_missing_message'));
+        if (empty($this->collection_uuid)) {
+            remove_action('admin_notices', array($this, 'collection_uuid_missing_message'));
+            add_action('admin_notices', array($this, 'collection_uuid_missing_message'));
             $valid = false;
         }
     
@@ -64,7 +64,7 @@ class LeanX_Verification {
         // Define headers
         $headers = array(
             'Content-Type' => 'application/json',
-            'auth-token' => $this->api_key, // adjust this to your actual authorization method
+            'auth-token' => $this->auth_token, // adjust this to your actual authorization method
         );
     
         $valid = true;
@@ -75,36 +75,36 @@ class LeanX_Verification {
 
         $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
 
-        $url = $sandbox_enabled ? 'https://api.leanx.dev': 'https://api.payright-sandbox.my';
+        $url = $sandbox_enabled ? 'https://api.leanx.dev': 'https://api.leanx.io';
 
          // Log url response
          $logger->info('url: ' . print_r($url . ": " . $this->sandbox_enabled, true), $context);       
     
-        // Check API key
-        $api_key_response = $this->call_api($url . '/api/v1/public-merchant/validate', array(
-            'api_key' => $this->api_key
+        // Check Auth Token
+        $auth_token_response = $this->call_api($url . '/api/v1/public-merchant/validate', array(
+            'auth_token' => $this->auth_token
         ), $headers);
     
-        // Log API Key response
-        $logger->info('API Key response: ' . print_r($api_key_response, true), $context);
+        // Log Auth Token response
+        $logger->info('Auth Token response: ' . print_r($auth_token_response, true), $context);
     
-        if ($api_key_response['body']['response_code'] != 2000 || $api_key_response['body']['description'] != 'SUCCESS') {
-            $logger->error('Invalid API key.', $context);
-            add_action('admin_notices', array($this, 'api_key_invalid_message'));
+        if ($auth_token_response['body']['response_code'] != 2000 || $auth_token_response['body']['description'] != 'SUCCESS') {
+            $logger->error('Invalid Auth Token.', $context);
+            add_action('admin_notices', array($this, 'auth_token_invalid_message'));
             $valid = false;
         }
     
-        // Check Collection ID
-        $collection_id_response = $this->call_api($url . '/api/v1/public-merchant/validate-collection-id', array(
-            'uuid' => $this->collection_id
+        // Check Collection UUID
+        $collection_uuid_response = $this->call_api($url . '/api/v1/public-merchant/validate-collection-id', array(
+            'uuid' => $this->collection_uuid
         ), $headers);
     
-        // Log Collection ID response
-        $logger->info('Collection ID response: ' . print_r($collection_id_response, true), $context);
+        // Log Collection UUID response
+        $logger->info('Collection UUID response: ' . print_r($collection_uuid_response, true), $context);
     
-        if ($collection_id_response['body']['response_code'] != 2000 || $collection_id_response['body']['description'] != 'SUCCESS') {
-            $logger->error('Invalid collection ID.', $context);
-            add_action('admin_notices', array($this, 'collection_id_invalid_message'));
+        if ($collection_uuid_response['body']['response_code'] != 2000 || $collection_uuid_response['body']['description'] != 'SUCCESS') {
+            $logger->error('Invalid collection UUID.', $context);
+            add_action('admin_notices', array($this, 'collection_uuid_invalid_message'));
             $valid = false;
         }
     
@@ -134,12 +134,12 @@ class LeanX_Verification {
         return true;
     }
 
-    public function api_key_missing_message() {
-        echo '<div class="error"><p>' . __('LeanX Error: API Key is missing.', 'leanx') . '</p></div>';
+    public function auth_token_missing_message() {
+        echo '<div class="error"><p>' . __('LeanX Error: Auth Token is missing.', 'leanx') . '</p></div>';
     }
 
-    public function collection_id_missing_message() {
-        echo '<div class="error"><p>' . __('LeanX Error: Collection ID is missing.', 'leanx') . '</p></div>';
+    public function collection_uuid_missing_message() {
+        echo '<div class="error"><p>' . __('LeanX Error: Collection UUID is missing.', 'leanx') . '</p></div>';
     }
 
     public function bill_invoice_id_missing_message() {
@@ -154,12 +154,12 @@ class LeanX_Verification {
         echo '<div class="error"><p>' . __('LeanX Error: The current currency is not supported.', 'leanx') . '</p></div>';
     }
 
-    public function api_key_invalid_message() {
-        echo '<div class="error"><p>' . __('LeanX Error: API Key is invalid.', 'leanx') . '</p></div>';
+    public function auth_token_invalid_message() {
+        echo '<div class="error"><p>' . __('LeanX Error: Auth Token is invalid.', 'leanx') . '</p></div>';
     }
 
-    public function collection_id_invalid_message() {
-        echo '<div class="error"><p>' . __('LeanX Error: Collection ID is invalid.', 'leanx') . '</p></div>';
+    public function collection_uuid_invalid_message() {
+        echo '<div class="error"><p>' . __('LeanX Error: Collection UUID is invalid.', 'leanx') . '</p></div>';
     }
 
     private function call_api($url, $params, $headers) {

@@ -21,7 +21,7 @@ if ($order_id && !empty($invoice_no)) {
     $is_sandbox = $leanx_settings['is_sandbox'];
     // Get the sandbox setting from the admin settings
     $sandbox_enabled = get_option('woocommerce_leanx_settings')['is_sandbox'] === 'yes';
-    $api_key = $leanx_settings['api_key'];
+    $auth_token = $leanx_settings['auth_token'];
 
     // Mark the order as completed and reduce stock levels
     $order = wc_get_order($order_id);
@@ -40,7 +40,7 @@ if ($order_id && !empty($invoice_no)) {
         $response = wp_remote_post($api_url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'auth-token' => $api_key,
+                'auth-token' => $auth_token,
             ),
             'timeout' => 20 // Setting timeout to 20 seconds
         ));
@@ -48,7 +48,7 @@ if ($order_id && !empty($invoice_no)) {
         // Log API response
         $logger = wc_get_logger();
         $context = array('source' => 'leanx_order_verification');
-        $logger->info('API key: ' . $api_key, $context);
+        $logger->info('Auth Token: ' . $auth_token, $context);
         // Log URL response
         $logger->info('URL: ' . $api_url . ": sandbox_enabled: " . $sandbox_enabled, $context);
         $logger->info('API response: ' . print_r($response, true), $context);
@@ -57,20 +57,23 @@ if ($order_id && !empty($invoice_no)) {
         if ($response_code == 200) {
             // If response code is 200, decode the body and proceed with the logic
             $api_response = json_decode(wp_remote_retrieve_body($response), true);
+            $invoice_status = $api_response['data']['transaction_details']['invoice_status'];
     
             // Check API response content here
-            if ($api_response['response_code'] == '2000' && $api_response['data']['transaction_details']['invoice_status'] == 'SUCCESS') {
+            if ($api_response['response_code'] == '2000' && $invoice_status == 'SUCCESS') {
                 // Handle success scenario
-                if ($order->get_status() === 'pending') {
+                if ($order->get_status() === 'pending' || $order->get_status() === 'cancelled') {
                     $order->update_status('processing', 'Payment successful via LeanX.');
                 }
+                update_invoice_status($order_id, $invoice_status);
                 wp_redirect($order->get_checkout_order_received_url());
                 $successful = true;
-            } elseif ($api_response['data']['transaction_details']['invoice_status'] == 'FAILED') {
+            } elseif ($invoice_status == 'FAILED') {
                 // Handle failure scenario
                 if ($order->get_status() === 'pending') {
                     $order->update_status('cancelled', 'Payment failed via LeanX.');
                 }
+                update_invoice_status($order_id, $invoice_status);
                 wc_add_notice(__('Order verification failed. Please contact support.', 'leanx'), 'error');
                 wp_redirect(wc_get_cart_url());
                 $successful = true;
